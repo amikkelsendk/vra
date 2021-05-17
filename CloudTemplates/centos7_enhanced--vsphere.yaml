@@ -1,0 +1,83 @@
+name: CentOS7 Enhanced (vSphere)
+version: 1
+formatVersion: 1
+## ----------------- Inputs ----------------- ##
+inputs:
+  image:
+    type: string
+    description: Select Image
+    default: CentOS7-Minimal
+    title: Image
+    oneOf:
+      - title: CentOS7
+        const: CentOS7-Minimal
+  flavour:
+    type: string
+    enum:
+      - X-Small
+      - Small
+    description: Select the size of the deployment.
+    default: X-Small
+    title: Flavour (Size)
+  network:
+    type: string
+    description: Select Network to Attach to
+    default: env.onprem.private.network.prod
+    title: Network
+    oneOf:
+      - title: '* ANY *'
+        const: ''
+      - title: TEST
+        const: env.onprem.private.network.test
+      - title: PROD
+        const: env.onprem.private.network.prod
+  StorageTier:
+    type: string
+    description: Select Storage Tier
+    title: Storage Tier
+    default: ''
+    oneOf:
+      - title: '* ANY *'
+        const: ''
+      - title: NFS
+        const: env.storage.nfs
+      - title: SSD
+        const: env.storage.ssd
+      - title: NVMe
+        const: env.storage.nvme
+  volume0GB:
+    type: integer
+    description: Disk size of BootDisk in GB
+    default: 20
+    minimum: 20
+    maximum: 100
+    title: BootDisk size GB
+## ----------------- Resources ----------------- ##
+resources:
+  Cloud_vSphere_Machine_1:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      myInstanceName: '${self.name}'
+      flavor: '${input.flavour}'
+      image: '${input.image}'
+      storage:
+        #bootDiskCapacityInGB: '${input.volume0GB}'
+        constraints:
+          - tag: '${input.StorageTier}'
+      networks:
+        - network: '${resource.Cloud_vSphere_Network_1.id}'
+  Cloud_vSphere_Network_1:
+    type: Cloud.vSphere.Network
+    metadata:
+      layoutPosition:
+        - 2
+        - 0
+    properties:
+      networkType: existing
+      constraints:
+        - tag: '${input.network}'
+## ----------------- Custom Properties ----------------- ##
