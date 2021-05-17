@@ -1,0 +1,173 @@
+---
+project: DEMO Env.
+kind: PIPELINE
+name: Packer - multiple builds
+icon: organization,left, is-orange
+enabled: true
+concurrency: 10
+workspace:
+  endpoint: ''
+  image: ''
+  registry: ''
+  path: ''
+  autoCloneForTrigger: false
+  limits:
+    cpu: 1.0
+    memory: 512
+stageOrder:
+- Validate
+- Build
+- Content-Lib
+stages:
+  Content-Lib:
+    taskOrder:
+    - Task0
+    tasks:
+      Task0:
+        type: PowerShell
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: ls
+          username: administrator@vsphere.loval
+          password: <<password>>
+          useTLS: true
+          trustCert: true
+          host: 192.168.1.254
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+  Validate:
+    taskOrder:
+    - Packer Validate - Win10,Packer Validate - CentOS8,Packer Validate - Ubuntu19
+    tasks:
+      Packer Validate - Win10:
+        type: SSH
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: |-
+            cd /packer
+            ./packer validate win10/windows-10.json
+          username: root
+          password: ${var.Packer-root}
+          passphrase: ''
+          privatekey: ''
+          host: ${var.Packer_Host}
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+      Packer Validate - CentOS8:
+        type: SSH
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: |-
+            cd /packer
+            ./packer validate centos8/centos8.json
+          username: root
+          password: ${var.Packer-root}
+          passphrase: ''
+          privatekey: ''
+          host: ${var.Packer_Host}
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+      Packer Validate - Ubuntu19:
+        type: SSH
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: |-
+            cd /packer
+            ./packer validate -var-file ubuntu19/variables.json ubuntu19/ubuntu19.json
+          username: root
+          password: ${var.Packer-root}
+          passphrase: ''
+          privatekey: ''
+          host: ${var.Packer_Host}
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+  Build:
+    taskOrder:
+    - Packer Build - Win10,Packer Build - Ubuntu19
+    tasks:
+      Packer Build - Win10:
+        type: SSH
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: |-
+            cd /packer
+            ./packer build win10/windows-10.json
+          username: root
+          password: ${var.Packer-root}
+          passphrase: ''
+          privatekey: ''
+          host: ${var.Packer_Host}
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+      Packer Build - Ubuntu19:
+        type: SSH
+        endpoints:
+          agent: <<Endpoint Proxy>>
+        input:
+          script: |-
+            cd /packer
+            ./packer build -var-file ubuntu19/variables.json ubuntu19/ubuntu19.json
+          username: root
+          password: ${var.Packer-root}
+          passphrase: ''
+          privatekey: ''
+          host: ${var.Packer_Host}
+          workingDirectory: ''
+          arguments: [
+            ]
+          environmentVariables: {
+            }
+notifications:
+  email:
+  - endpoint: Codestream-Default-Email
+    body: |-
+      <table>
+        <tr><td>Name</td><td>${name}</td></tr>
+        <tr><td>Start</td><td>${startTime}</td></tr>
+        <tr><td>Status</td><td>${status}</td></tr>
+        <tr><td>Message</td><td>${statusMessage}</td></tr>
+        <tr><td>Requester</td><td>${requestBy}</td></tr>
+        <tr><td>Duration</td><td>${duration}</td></tr>
+        <tr><td> </td><td> </td></tr>
+        <tr><td>ResultText</td><td>${resultsText}</td></tr>
+      </table>
+    event: SUCCESS
+    subject: 'Pipeline: ${name}'
+    to:
+    - my@email.com
+  - endpoint: Codestream-Default-Email
+    body: |-
+      <table>
+        <tr><td>Name</td><td>${name}</td></tr>
+        <tr><td>Start</td><td>${startTime}</td></tr>
+        <tr><td>Status</td><td>${status}</td></tr>
+        <tr><td>Message</td><td>${statusMessage}</td></tr>
+        <tr><td>Requester</td><td>${requestBy}</td></tr>
+        <tr><td>Duration</td><td>${duration}</td></tr>
+        <tr><td> </td><td> </td></tr>
+        <tr><td>ResultText</td><td>${resultsText}</td></tr>
+      </table>
+    event: FAILURE
+    subject: 'Pipeline ERROR: ${name}'
+    to:
+    - my@email.com

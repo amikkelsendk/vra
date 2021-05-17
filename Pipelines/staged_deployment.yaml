@@ -1,0 +1,56 @@
+---
+project: DEMO Env.
+kind: PIPELINE
+name: TEST Staged Deploy
+icon: organization,left, is-success is-solid
+enabled: true
+concurrency: 10
+input:
+  Count: '1'
+_inputMeta:
+  Count:
+    description: ''
+    mandatory: true
+workspace:
+  endpoint: ''
+  image: ''
+  registry: ''
+  path: ''
+  autoCloneForTrigger: false
+  limits:
+    cpu: 1.0
+    memory: 512
+stageOrder:
+- Stage0
+- Stage1
+stages:
+  Stage0:
+    taskOrder:
+    - Task0
+    tasks:
+      Task0:
+        type: Blueprint
+        input:
+          action: CreateDeployment
+          deploymentName: ${name} Stage0
+          blueprint: CentOS7 (vSphere)
+          version: '4.2'
+          parameters:
+            Size: Small
+            Network: PROD
+            Count: ${input.Count}
+  Stage1:
+    taskOrder:
+    - Task0-1
+    tasks:
+      Task0-1:
+        type: Blueprint
+        input:
+          action: CreateDeployment
+          deploymentName: ${name} Stage1
+          blueprint: CentOS7 (vSphere)
+          version: '4.2'
+          parameters:
+            Size: Small
+            Network: PROD
+            Count: ${input.Count}
