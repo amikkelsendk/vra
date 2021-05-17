@@ -1,0 +1,32 @@
+formatVersion: 1
+inputs:
+  ServerName:
+    type: string
+    description: Type the name of the server
+    title: Name of server
+resources:
+  Cloud_Machine_1:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      image: Win2016-Std
+      flavor: Small
+      newName: '${input.ServerName}'
+      storage:
+        maxDiskCapacityInGB: 500
+        bootDiskCapacityInGB: 100
+      networks:
+        - network: '${resource.Cloud_Network_1.id}'
+      attachedDisks: []
+  Cloud_Network_1:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: VLAN1
+      networkType: existing

@@ -1,0 +1,53 @@
+name: CentOS7 (vSphere)
+formatVersion: 1
+inputs:
+  Size:
+    title: Deployment Size
+    type: string
+    enum:
+      - Small
+      - Medium
+      - Large
+      - X-Large
+    default: Small
+  Count:
+    title: How many to deploy
+    type: integer
+    minimum: 1
+    maximum: 3
+    default: 1
+  Network:
+    title: Choose network
+    type: string
+    enum:
+      - PROD
+      - TEST
+      - NestedVM
+    default: PROD
+resources:
+  BaseCentOS:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 1
+        - 1
+    properties:
+      name: CentOS
+      image: CentOS7-Minimal
+      flavor: '${input.Size}'
+      count: '${input.Count}'
+      customizationSpec: CentOS
+      networks:
+        - network: '${resource.Cloud_vSphere_Network_1.id}'
+  Cloud_vSphere_Network_1:
+    type: Cloud.vSphere.Network
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      #name: 'DPortGroup'
+      #name: ${resource[Cloud_vSphere_Network_1].name}
+      #name: '${input.Network}'
+      flavor: '${input.Network}'
+      networkType: existing

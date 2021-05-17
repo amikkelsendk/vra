@@ -1,0 +1,28 @@
+name: VM with multiple disks (vSphere)
+formatVersion: 1
+inputs: {}
+resources:
+  Cloud_vSphere_Disk_1:
+    type: Cloud.vSphere.Disk
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      capacityGb: 1
+      provisioningType: thin
+      maxDiskCapacityInGB: 2
+  Cloud_vSphere_Machine_1:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      image: Test-Blank-Image
+      flavor: Small
+      attachedDisks:
+        - source: '${resource.Cloud_vSphere_Disk_1.id}'
+#storage: 
+#  bootDiskCapacityInGB: 1
+#  maxDiskCapacityInGB: 2
