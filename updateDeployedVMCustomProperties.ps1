@@ -15,11 +15,15 @@
 function Set-ComputeCustomProperties($vRAUrl, $apiUrl, $body, $token) {
     # Get BearerToken
     $bearerUrl = $vRAUrl + "/iaas/api/login"
-    $body = "{`"refreshToken`": $token}"
-    $bearerToken = Invoke-RestMethod $bearerUrl -ContentType "application/json" -Body $body -Method 'POST'
+    $bearerBody = "{`"refreshToken`": $token}"
+    $bearerToken = Invoke-RestMethod $bearerUrl -ContentType "application/json" -Body $bearerBody -Method 'POST'
+
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $headers.Add("Authorization", "Bearer $($bearerToken.token)")
+    $headers.Add("Content-Type", "application/json")
 
     $uri = $vRAUrl + $apiUrl
-    $response = Invoke-RestMethod $uri -Headers @{'Authorization' = "Bearer $($bearerToken.token)" } -ContentType "application/json" -Body $body -Method 'PATCH'
+    $response = Invoke-RestMethod $uri -Headers $headers -Body $body -Method 'PATCH'
    
     Return $response
 }
