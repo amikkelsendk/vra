@@ -1,0 +1,130 @@
+formatVersion: 1
+## -----  INPUT ----- ##
+inputs:
+  hostname:
+    type: string
+    description: Server hostname
+    title: Hostname
+    pattern: ^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
+  # REGEX: Valid FQDN or IP
+  image:
+    type: string
+    description: Select OS Image
+    default: Win2019-Std-CloudBaseInit
+    title: OS Image
+    oneOf:
+      - title: Windows 2019 Std
+        const: Win2019-Std-CloudBaseInit
+      - title: Windows 2019 Std v2
+        const: Win2019-Std-CloudBaseInit_v2
+  flavour:
+    type: string
+    description: Select the size of the deployment.
+    default: Medium
+    title: Flavour (Size)
+    enum:
+      - Medium
+      - Large
+  volume0gb:
+    type: integer
+    description: Disk size of BootDisk in GB
+    default: 60
+    title: BootDisk size GB
+    minimum: 60
+    maximum: 200
+  network:
+    type: string
+    description: Select Network to Attach to
+    default: env.network.vlan49
+    title: Network
+    oneOf:
+      - title: PROD
+        const: env.onprem.network.prod
+      - title: VLAN 49
+        const: env.network.vlan49
+## -----  RESOURCES ----- ##
+resources:
+  Cloud_vSphere_Network_1:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      networkType: existing
+      constraints:
+        - tag: ${input.network}
+  Cloud_Machine_1:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 1
+        - 1
+    properties:
+      image: ${input.image}
+      flavor: ${input.flavour}
+      storage:
+        bootDiskCapacityInGB: ${input.volume0gb}
+      networks:
+        - network: ${resource.Cloud_vSphere_Network_1.id}
+          assignment: static
+      ## Custom Properties ##
+      newName: ${input.hostname}
+      RenameVM: 'yes'
+      ## CloudInit ##
+      cloudConfigSettings:
+        phoneHomeFailOnTimeout: true #Making sure that cloudconfig is finished, before continue
+        phoneHomeShouldWait: true
+        phoneHomeTimeoutSeconds: 300
+      cloudConfig: |
+        #cloud-config
+        set_hostname: '${self.newName}'
+
+        write_files:
+          - path: 'C:\\Temp\\vRAScripts\\timezone.ps1'
+            content: |
+              Set-TimeZone -Id "GMT Standard Time" -Confirm:$false
+              
+          - path: 'C:\\Temp\\vRAScripts\\diskConfig.ps1'
+            content: |
+              Update-HostStorageCache
+              $arrNewDisks = Get-Disk | Where-Object{$_.OperationalStatus -eq "Offline" -and $_.PartitionStyle -eq "RAW"}
+              Foreach($objDisk In $arrNewDisks){
+                # Get disk number
+                $thisDiskNo = $objDisk.Number
+                # Initialize / Create partition / Assign drive letter
+                $objPartition = Get-Disk -Number $thisDiskNo | Initialize-Disk -PartitionStyle "GPT" -PassThru | New-Partition -AssignDriveLetter -UseMaximumSize
+                # Format partition
+                Format-Volume -DriveLetter $objPartition.DriveLetter -FileSystem "NTFS" -NewFileSystemLabel "Disk $thisDiskNo" -Confirm:$false
+              }
+              
+          - path: 'C:\\Temp\\vRAScripts\\join.ps1'
+            content: |
+              $joinCred = New-Object pscredential -ArgumentList ([pscustomobject]@{
+              UserName = '<user.domain.com>'
+              Password = (ConvertTo-SecureString -String '<domain password>' -AsPlainText -Force)[0]
+              })
+              Add-Computer -Computername ${resource.Cloud_Machine_1.name} -DomainName "<domain name>" -Credential $joinCred -Restart
+              Clear-History -Confirm:$false
+              #Remove-Item -Path "C:\Temp\vRAScripts\join.ps1" -Force -Confirm:$false
+
+          - path: 'C:\\Temp\\vRAScripts\\cleanup.ps1'
+            content: |
+              # Remove-Item -Path "C:\Temp\vRAScripts\disableDNS.ps1" -Force -Confirm:$false
+              # Remove-Item -Path "C:\Temp\vRAScripts\join.ps1" -Force -Confirm:$false
+              # Remove-Item -Path "C:\Program Files\Cloudbase Solutions\Cloudbase-Init\log\*.log" -Force -Confirm:$false
+              msiexec.exe /x "C:\Downloads\Cloudbase-Init\CloudbaseInitSetup_1_1_2_x64.msi" /q
+              Remove-Item -Path "C:\Program Files\Cloudbase Solutions" -Recurse -Force -Confirm:$false
+              # Remove-Item -Path "C:\Temp\vRAScripts\cleanup.ps1" -Force -Confirm:$false
+              Clear-History -Confirm:$false
+              Restart-Computer
+              
+          
+              
+        runcmd:
+          #- 'PowerShell C:\\Temp\\vRAScripts\\timezone.ps1'
+          #- 'PowerShell C:\\Temp\\vRAScripts\\diskConfig.ps1'
+          #- net user Administrator '<password>'
+          - sc.exe config cloudbase-init start= disabled
+          - tzutil /s "GMT Standard Time"
+          #- tzutil /s "Romance Standard Time"
