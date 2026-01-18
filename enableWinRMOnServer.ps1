@@ -51,10 +51,11 @@ winrm set winrm/config/service/auth '@{CbtHardeningLevel="relaxed"}'
 
 # Set TrustedHosts - who can connect
 $hosts = "192.168.1.30"                 # Single
-#$hosts = "192.168.1.30,192.168.1.0/24" # Multiple
+#$hosts = "[192.168.1.30, 192.168.1.0/24]" # Multiple
 #$hosts = "*"                           # ALL
 Set-Item wsman:\localhost\client\TrustedHosts -Value $hosts -Force
 #winrm set winrm/config/client '@{TrustedHosts="host1, host2, host3"}'
+#winrm set winrm/config/client '@{TrustedHosts="[192.168.30.0/24, 192.168.49.0/24]"}'
 #winrm set winrm/config/client '@{TrustedHosts="*"}'
 
 # Create WinRM HTTPS listner
