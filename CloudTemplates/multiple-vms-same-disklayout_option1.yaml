@@ -1,0 +1,182 @@
+##
+## Cudos to Josh Broadway
+##
+formatVersion: 1
+inputs:
+  count:
+    type: integer
+    title: Number of Instances
+    description: |-
+      <h4>Number of Instances</h4>
+      <p>Select the amount of Servers you would like deployed. <i>(Default is 1)</i></p></br>
+      <ul>
+        <li><b>Minimum:</b> 1</li>
+        <li><b>Maximum:</b> 4</li>
+      </ul>
+    minimum: 1
+    maximum: 4
+  image:
+    type: string
+    title: Operating System
+    description: |-
+      <h4>Operating System</h4>
+      <p>Select what Operating System you would like</p>
+  environment:
+    type: string
+    title: Environment
+    description: |-
+      <h4>Environment</h4>
+      <p>Select which environment this deployment should be associated to</p>
+  location:
+    type: string
+    title: Location
+    description: |-
+      <h4>Location</h4>
+      <p>Select the location you want to deploy to</p>
+  flavor:
+    type: string
+    title: Size of the VM
+    description: |-
+      <h4>Size of the VM</h4></br>
+      <p>Select the initial size of the VM. A Day-2 Action can be performed to resize the VM.</p>
+      <h5>Sizes</h5>
+      <ul>
+        <li>Small = 1 CPU, 4GB Memory</li>
+        <li>Medium = 2 CPU, 8GB Memory</li>
+        <li>Large = 4 CPU, 16GB Memory</li>
+      </ul>
+    default: Small-1-4
+    enum:
+      - Small
+      - Medium
+      - Large
+  disks:
+    type: array
+    minItems: 0
+    maxItems: 12
+    default:
+      - letter: D
+        label: APPS
+        size: 20
+        blockSize: 4096
+    items:
+      type: object
+      properties:
+        letter:
+          type: string
+          title: Letter
+          description: Enter the Letter or Mount Point this disk will be mounted with.
+          pattern: ^([A-Z]:\\\w.*|\b[D-Z])$
+        label:
+          type: string
+          title: Label
+          description: Enter the label you would like the disk name to be.
+        size:
+          type: integer
+          title: Size (GB)
+          description: Enter the size of the disk. This cannot be more than 200GB.
+          minimum: 1
+          maximum: 200
+        blockSize:
+          type: integer
+          title: Block Size
+          description: Block Size you want the formatted partition to be. (SQL Must be 64k to work correctly)
+          default: 4096
+          oneOf:
+            - title: Default
+              const: 4096
+            - title: 64k
+              const: 65536
+        scsiController:
+          type: string
+          title: SCSI Controller
+          description: Select what SCSI Controller you would like. If left blank, it will use the default SCSI Controller
+          oneOf:
+            - title: SCSI Controller 0
+              const: SCSI_Controller_0
+            - title: SCSI Controller 1
+              const: SCSI_Controller_1
+            - title: SCSI Controller 2
+              const: SCSI_Controller_2
+            - title: SCSI Controller 3
+              const: SCSI_Controller_3
+        unitNumber:
+          type: string
+          title: Unit Number
+          description: Unit Number you want the disk to attach to on the SCSI Controller
+          enum:
+            - '0'
+            - '1'
+            - '2'
+            - '3'
+            - '4'
+            - '5'
+            - '6'
+            - '8'
+            - '9'
+            - '10'
+            - '11'
+            - '12'
+  networkZone:
+    type: string
+    title: Network Zone
+    description: |-
+      <h4>Network Zone</h4>
+      <p>Select the Network Zone you want to deploy to.</p>
+resources:
+  Machine:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    allocatePerInstance: true
+    properties:
+      count: ${input.count}
+      image: ${input.image}
+      customizationSpec: vRA_Windows
+      flavor: ${input.flavor}
+      folderName: ${env.projectName}
+      networks:
+        - network: ${resource.Network.id}
+          assignment: static
+      attachedDisks: ${map_to_object(slice(resource.Disk[*].id, length(input.disks)*count.index, length(input.disks)*(count.index +1)), "source")}
+      storage:
+        constraints:
+          - tag: ${'location:' + input.location}
+          - tag: ${'environment:' + input.environment}
+          - tag: ${'networkZone:' + input.networkZone}
+      constraints:
+        - tag: ${'location:' + input.location}
+        - tag: ${'environment:' + input.environment}
+        - tag: ${'networkZone:' + input.networkZone}
+  Disk:
+    type: Cloud.vSphere.Disk
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    allocatePerInstance: true
+    properties:
+      count: ${length(input.disks)*input.count}
+      name: ${input.disks[count.index % length(input.disks)].letter + "(" + input.disks[count.index % length(input.disks)].label + ")"}
+      capacityGb: ${input.disks[count.index % length(input.disks)].size}
+      diskInfo: ${to_json(input.disks[count.index % length(input.disks)])}
+      SCSIController: ${input.disks[count.index % length(input.disks)].scsiController == '' ? "":input.disks[count.index % length(input.disks)].scsiController}
+      unitNumber: ${input.disks[count.index % length(input.disks)].unitNumber == '' ? "":input.disks[count.index % length(input.disks)].unitNumber}
+      constraints:
+        - tag: ${'location:' + input.location}
+        - tag: ${'environment:' + input.environment}
+        - tag: ${'networkZone:' + input.networkZone}
+  Network:
+    type: Cloud.vSphere.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      networkType: existing
+      constraints:
+        - tag: ${'location:' + input.location}
+        - tag: ${'environment:' + input.environment}
+        - tag: ${'networkZone:' + input.networkZone}

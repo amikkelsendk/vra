@@ -1,0 +1,107 @@
+##
+## Cudos to Christopher Lewis
+##
+formatVersion: 1
+inputs:
+  size:
+    title: Machine Size
+    type: string
+    enum:
+      - small
+      - medium
+      - large
+    description: |
+      <ul>
+        <li><b>Small</b> - 1 vCPU, 2GB RAM, 50GB HDD</li>
+        <li><b>Medium</b> - 2 vCPU, 4GB RAM, 50GB HDD</li>
+        <li><b>Large</b> - 4 vCPU, 8GB RAM, 50GB HDD</li>
+      </ul>
+  image:
+    title: Operating System
+    type: string
+    oneOf:
+      - title: Windows Server 2016
+        const: Windows-16
+      - title: Ubuntu 18
+        const: ubuntu-18
+    description: |
+      <ul>
+        <li><b>Windows Server 2016</b> - Corporate Standard Image</li>
+        <li><b>Ubuntu 18</b> - Corporate Standard Image</li>
+      </ul>
+    default: Windows-16
+  location:
+    type: string
+    title: Location
+    oneOf:
+      - title: Private Cloud
+        const: env:vsphere
+      - title: VMware Cloud
+        const: env:vmc
+  diskInfo:
+    type: array
+    title: Add Additional Disks
+    maxItems: 5
+    items:
+      type: object
+      properties:
+        controller:
+          type: string
+          title: SCSI Controller
+          enum:
+            - SCSI_Controller_0
+            - SCSI_Controller_1
+            - SCSI_Controller_2
+            - SCSI_Controller_3
+          default: SCSI_Controller_0
+        unit:
+          type: integer
+          title: Disk Order
+          maximum: 4
+          minimum: 1
+        size:
+          type: number
+          title: Size GB
+          default: 5
+          maximum: 200
+          minimum: 1
+        mountPoint:
+          type: string
+          title: Mountpoint/Drive Letter
+        label:
+          type: string
+          title: Disk Label
+    minItems: 1
+  numMachines:
+    type: integer
+    minimum: 1
+    maximum: 5
+    default: 1
+resources:
+  machine:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    allocatePerInstance: true
+    properties:
+      image: ${input.image}
+      flavor: ${input.size}
+      count: ${input.numMachines}
+      constraints:
+        - tag: ${input.location}
+      attachedDisks: ${map_to_object(slice(resource.disk[*].id, input.numMachines * count.index, input.numMachines * (count.index+1)), "source")}
+  disk:
+    type: Cloud.vSphere.Disk
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    allocatePerInstance: true
+    properties:
+      count: ${input.numMachines * length(input.diskInfo)}
+      capacityGb: ${input.diskInfo[count.index].size}
+      name: ${input.diskInfo[count.index].label}
+      SCSIController: ${input.diskInfo[count.index].controller}
+      unitNumber: ${input.diskInfo[count.index].unit}

@@ -1,0 +1,80 @@
+formatVersion: 1
+inputs:
+  VMArray:
+    title: Virtual Machines
+    type: array
+    minItems: 1
+    maxItems: 5
+    items:
+      type: object
+      properties:
+        size:
+          type: string
+          title: Size
+          description: Select VM Size
+          default: Small
+          enum:
+            - Small
+            - Medium
+        OSVersion:
+          type: string
+          title: OS Version
+          description: Select an Operating System
+          default: CentOS7-Minimal
+          enum:
+            - CentOS7-Minimal
+            - RedHat
+        EDriveSize:
+          type: integer
+          title: E Disk size (GB)
+          default: 2
+          minimum: 0
+          maximum: 2048
+          description: Enter 0 to disable the disk and not create
+        FDriveSize:
+          type: integer
+          title: F Disk size (GB)
+          default: 0
+          minimum: 0
+          maximum: 2048
+          description: Enter 0 to disable the disk and not create
+resources:
+  Cloud_Volume_E:
+    type: Cloud.Volume
+    allocatePerInstance: true
+    properties:
+      capacityGb: ${ input.VMArray[count.index].EDriveSize < 1? 1 :input.VMArray[count.index].EDriveSize }
+      count: ${ length( filter_by( input.VMArray.EDriveSize, (v) => v != 0 ) ) }
+      vmCountIndex: ${count.index}
+  Cloud_Volume_F:
+    type: Cloud.Volume
+    allocatePerInstance: true
+    properties:
+      capacityGb: ${ input.VMArray[count.index].FDriveSize < 1? 1 :input.VMArray[count.index].FDriveSize }
+      count: ${ length( filter_by( input.VMArray.FDriveSize, (v) => v != 0 ) ) }
+      vmCountIndex: ${count.index}
+  #Cloud_Network_1:
+  #  type: Cloud.Network
+  #  properties:
+  #    networkType: existing
+  #    constraints:
+  #      - tag: env.onprem.conscia.network.prod
+  Cloud_Machine_1:
+    type: Cloud.Machine
+    allocatePerInstance: true
+    properties:
+      image: ${input.VMArray[count.index].OSVersion}
+      flavor: ${input.VMArray[count.index].size}
+      count: ${length(input.VMArray)}
+      ## OK ##
+      #attachedDisks: ${ map_to_object(slice(resource.Cloud_Volume_E[*].id, length(filter_by(input.VMArray.EDriveSize, (v) => v != 0)) * count.index, length(filter_by(input.VMArray.EDriveSize, (v) => v != 0)) * (count.index +1)),"source") + map_to_object(slice(resource.Cloud_Volume_F[*].id, length(filter_by(input.VMArray.FDriveSize, (v) => v != 0)) * count.index, length(filter_by(input.VMArray.FDriveSize, (v) => v != 0)) * (count.index +1)),"source")}
+      attachedDisks: ${ map_to_object( filter_by( resource.Cloud_Volume_E[*], x => x.vmCountIndex ==  to_string(count.index) ).id, "source" ) + map_to_object( filter_by( resource.Cloud_Volume_F[*], x => x.vmCountIndex ==  to_string(count.index) ).id, "source" ) }
+      ## TESTING ##
+      #myTEST1b: ${'"' + count.index + '"'}
+      #myTESt2a: ${ map_to_object( filter_by( resource.Cloud_Volume_E[*], x => x.vmCountIndex ==  '"' + count.index + '"' ).id, "source" ) }
+      
+      #
+      #
+      # networks:
+      #   - network: ${resource.Cloud_Network_1.id}
+      #     assignment: static
